@@ -1,0 +1,22 @@
+{
+  "name": "api-gateway-server",
+  "description": "Test server to host API Gateway/Lambda services",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:TeamPraxis/api-gateway-server.git"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "body-parser": "1.14.1",
+    "express": "4.13.3",
+    "js-string-escape": "1.0.1",
+    "lodash": "4.13.1",
+    "nconf": "0.8.2",
+    "swagger-tools": "0.10.1",
+    "velocity": "0.7.2",
+    "yamljs": "0.2.7"
+  }
+}
