@@ -9,6 +9,34 @@ var PARAM_TYPE_LOOKUP = {
   'query': 'querystring'
 };
 
+// dereference a dotted string into an object
+// e.g. "a.b.c" => a.b.c
+function index(obj, i) { return obj[i]; }
+function getProperty(obj, str) {
+  // check for string literal
+  if (str.charAt(0) === '\'' && str.charAt(str.length - 1) === '\'') {
+    return str.substring(1, str.length - 1);
+  }
+  return str.split('.').reduce(index, obj);
+}
+
+// set an object property from a dotted string
+function setProperty(obj, str, value) {
+  if (typeof str === 'string') {
+    return setProperty(obj, str.split('.'), value);
+  } else if (str.length === 1 && value !== undefined) {
+    obj[str[0]] = value;
+    return value;
+  } else if (str.length === 0) {
+    return obj;
+  } else {
+    if (!obj[str[0]]) {
+      obj[str[0]] = {};
+    }
+    return setProperty(obj[str[0]], str.slice(1), value);
+  }
+}
+
 module.exports.get = function (req, res) {
   var lambdaName = req.swagger.operation['x-lambda-function'];
   if (!lambdaName) {
@@ -71,12 +99,27 @@ module.exports.get = function (req, res) {
 
   lambda.handler(JSON.parse(event), {
     succeed: function (result) {
+      var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
+
+      // construct the AWS-like mapping object
+      var integrationObj = { integration: { response: { body: result } } };
+      var responseObj = { };
+      _.each(_.keys(responseData.responseParameters), function (p) {
+        setProperty(responseObj, p, getProperty(integrationObj, responseData.responseParameters[p]));
+      });
+
+      // set the mapped headers
+      if (responseObj.method && responseObj.method.response) {
+        _.each(_.keys(responseObj.method.response.header), function (k) {
+          res.set(k, responseObj.method.response.header[k]);
+        });
+      }
       console.log('success!');
-      res.send(result);
+      res.status(responseData.statusCode).send(result);
     },
-    fail: function () {
-      console.log('failure!');
-      res.send('failure!');
+    fail: function (result) {
+      console.log('failure!', result);
+      res.send('failure! ' + result);
     }
   });
 };
