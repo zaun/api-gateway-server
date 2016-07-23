@@ -46,7 +46,8 @@ module.exports.get = function (req, res) {
 
   // convert the swagger object into a lambda event
   // using the velocity template engine that API gateway uses
-  var jsonTemplate = req.swagger.operation['x-amazon-apigateway-integration'].requestTemplates['application/json'];
+  var templateInfo = req.swagger.operation['x-amazon-apigateway-integration'].requestTemplates;
+  var jsonTemplate = templateInfo[req.headers['content-type'] || _.keys(templateInfo)[0]];
   var engine = new Engine({
     template: jsonTemplate
   });
@@ -114,12 +115,40 @@ module.exports.get = function (req, res) {
           res.set(k, responseObj.method.response.header[k]);
         });
       }
-      console.log('success!');
       res.status(responseData.statusCode).send(result);
     },
     fail: function (result) {
-      console.log('failure!', result);
-      res.send('failure! ' + result);
+      var responses = req.swagger.operation['x-amazon-apigateway-integration'].responses;
+      var found = false;
+      _.each(_.keys(responses), function (r) {
+        if ((new RegExp(r)).test(result)) {
+          var type = _.find(req.headers.accept.split(','), function (t) {
+            return _.find(_.keys(responses[r].responseTemplates), t);
+          }) || _.keys(responses[r].responseTemplates)[0];
+          var engine = new Engine({
+            template: responses[r].responseTemplates[type]
+          });
+
+          var response = engine.render({
+            // make an object that mimics what AWS puts into the velocity engine
+            util: {
+              escapeJavaScript: function (str) {
+                return jsStringEscape(str);
+              }
+            },
+            input: {
+              body: result,
+              json: function () { return JSON.stringify(result); }
+            }
+          });
+
+          found = true;
+          res.status(responses[r].statusCode).send(response);
+        }
+      });
+      if (!found) {
+        res.send(result);
+      }
     }
   });
 };
