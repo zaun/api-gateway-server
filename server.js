@@ -11,7 +11,6 @@ if (process.argv.length <= 2) {
 }
 
 var app = express();
-app.use(require('body-parser').urlencoded({ extended: true, limit: '5mb' }));
 
 var options = {
   controllers: './controllers',

@@ -37,7 +37,7 @@ function setProperty(obj, str, value) {
   }
 }
 
-module.exports.get = function (req, res) {
+function handler(req, res) {
   var lambdaName = req.swagger.operation['x-lambda-function'];
   if (!lambdaName) {
     res.status(500).send('No lambda function defined in swagger definition using x-lambda-function');
@@ -151,4 +151,12 @@ module.exports.get = function (req, res) {
       }
     }
   });
+}
+
+module.exports.get = function (req, res) {
+  handler(req, res);
+};
+
+module.exports.post = function (req, res) {
+  handler(req, res);
 };
