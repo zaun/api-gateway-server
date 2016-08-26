@@ -23,7 +23,10 @@ async.each(_.drop(process.argv, 2), function (arg, callback) {
   swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
     app.use(middleware.swaggerMetadata());
     app.use(middleware.swaggerRouter(options));
-    app.use(middleware.swaggerUi());
+    app.use(middleware.swaggerUi({
+      apiDocs: '/api-docs' + swaggerDoc.basePath,
+      swaggerUi: '/docs' + swaggerDoc.basePath
+    }));
     callback();
   });
 }, function () {
