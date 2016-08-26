@@ -1,9 +1,11 @@
 'use strict';
 
-var express = require('express'),
+var async = require('async'),
+    express = require('express'),
     http = require('http'),
     swaggerTools = require('swagger-tools'),
-    yamljs = require('yamljs');
+    yamljs = require('yamljs'),
+    _ = require('lodash');
 
 if (process.argv.length <= 2) {
   console.error('Usage: node server.js [SWAGGER_FILE]');
@@ -16,12 +18,15 @@ var options = {
   controllers: './controllers',
   useStubs: true
 };
-var swaggerDoc = yamljs.load(process.argv[2]);
-swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
-  app.use(middleware.swaggerMetadata());
-  app.use(middleware.swaggerRouter(options));
-  app.use(middleware.swaggerUi());
-
+async.each(_.drop(process.argv, 2), function (arg, callback) {
+  var swaggerDoc = yamljs.load(arg);
+  swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
+    app.use(middleware.swaggerMetadata());
+    app.use(middleware.swaggerRouter(options));
+    app.use(middleware.swaggerUi());
+    callback();
+  });
+}, function () {
   http.createServer(app).listen(7111, function () {
     console.log('API Gateway server listening on port 7111');
   });
