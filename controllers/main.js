@@ -59,6 +59,11 @@ function handler(req, res) {
     authLambda = require('../../' + authLambdaName);
   }
 
+  if (authLambda && (!req.swagger.params.Authorization || !req.swagger.params.Authorization.value)) {
+    res.status(401).send('Unauthorized');
+    return;
+  }
+
   async.waterfall([
     function (callback) {
       if (authLambda) {
