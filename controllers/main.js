@@ -77,8 +77,8 @@ function handler(req, res) {
             var statements = result.policyDocument.Statement;
             var allowedStatements = _.find(statements, { 'Effect': 'Allow' });
 
-            // proceed if we find it in the allowed statements
-            if (allowedStatements && _.indexOf(allowedStatements.Resource, authEvent.methodArn) >= 0) {
+            // proceed if we find any allowed statements since our auth function is allowing all
+            if (allowedStatements) {
               callback(null, result);
             }
             else {
