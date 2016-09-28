@@ -96,13 +96,10 @@ function handler(req, res) {
       }
     },
     function (userData, callback) {
-      // convert the swagger object into a lambda event
-      // using the velocity template engine that API gateway uses
-      var templateInfo = req.swagger.operation['x-amazon-apigateway-integration'].requestTemplates;
-      var jsonTemplate = templateInfo[req.headers['content-type'] || _.keys(templateInfo)[0]];
-      var engine = new Engine({
-        template: jsonTemplate
-      });
+
+      var isUsingAwsProxy = req.swagger.operation['x-amazon-apigateway-integration'].type === 'aws_proxy';
+
+      // First we need to get the swagger params
 
       // massage the swagger params into something usable by AWS
       // e.g.
@@ -121,67 +118,103 @@ function handler(req, res) {
         }).value();
       }).value();
 
-      var event = engine.render({
-        // make an object that mimics what AWS puts into the velocity engine
-        util: {
-          escapeJavaScript: function (str) {
-            return jsStringEscape(str);
-          }
-        },
-        input: {
-          json: function () {
-            if (!req.body) {
-              return JSON.stringify({});
-            }
-            return JSON.stringify(req.body);
-          },
-          params: function () {
-            return {
-              keySet: function () {
-                return _.keys(swaggerParams);
-              },
-              get: function (groupName) {
-                return {
-                  keySet: function () {
-                    return _.keys(swaggerParams[groupName]);
-                  },
-                  get: function (paramName) {
-                    return swaggerParams[groupName][paramName];
-                  }
-                };
-              }
-            };
-          }
-        }
-      });
+      // generate the event depending on the api gateway integration type
+      var event;
+      if (isUsingAwsProxy) {
+        event = {
+          path: req.url,
+          httpMethod: req.method,
+          headers: req.headers,
+          queryStringParameters: req.query,
+          body: JSON.stringify(req.body),
+          pathParameters: swaggerParams.path
+        };
+      }
+      else {
+        // convert the swagger object into a lambda event
+        // using the velocity template engine that API gateway uses
+        var templateInfo = req.swagger.operation['x-amazon-apigateway-integration'].requestTemplates;
+        var jsonTemplate = templateInfo[req.headers['content-type'] || _.keys(templateInfo)[0]];
+        var engine = new Engine({
+          template: jsonTemplate
+        });
 
-      event = JSON.parse(event);
+        event = engine.render({
+          // make an object that mimics what AWS puts into the velocity engine
+          util: {
+            escapeJavaScript: function (str) {
+              return jsStringEscape(str);
+            }
+          },
+          input: {
+            json: function () {
+              if (!req.body) {
+                return JSON.stringify({});
+              }
+              return JSON.stringify(req.body);
+            },
+            params: function () {
+              return {
+                keySet: function () {
+                  return _.keys(swaggerParams);
+                },
+                get: function (groupName) {
+                  return {
+                    keySet: function () {
+                      return _.keys(swaggerParams[groupName]);
+                    },
+                    get: function (paramName) {
+                      return swaggerParams[groupName][paramName];
+                    }
+                  };
+                }
+              };
+            }
+          }
+        });
+        event = JSON.parse(event);
+      }
+
       // if there's any userData, add on the data from the authentication function
       if (userData) {
-        if (!event.context) {
-          event.context = {};
+        if (isUsingAwsProxy) {
+          event.requestContext = {
+            authorizer: {
+              principalId: userData.principalId
+            }
+          };
         }
-        event.context['authorizer-principal-id'] = userData.principalId;
+        else {
+          if (!event.context) {
+            event.context = {};
+          }
+          event.context['authorizer-principal-id'] = userData.principalId;
+        }
       }
 
       lambda.handler(event, {
         succeed: function (result) {
-          var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
-
-          // construct the AWS-like mapping object
-          var integrationObj = { integration: { response: { body: result } } };
-          var responseObj = { };
-          _.each(_.keys(responseData.responseParameters), function (p) {
-            setProperty(responseObj, p, getProperty(integrationObj, responseData.responseParameters[p]));
-          });
-
-          // set the mapped headers
-          if (responseObj.method && responseObj.method.response) {
-            _.each(_.keys(responseObj.method.response.header), function (k) {
-              res.set(k, responseObj.method.response.header[k]);
-            });
+          if (isUsingAwsProxy) {
+            res.status(result.statusCode).send(JSON.parse(result.body));
           }
-          res.status(responseData.statusCode).send(result);
+          else {
+            var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
+
+            // construct the AWS-like mapping object
+            var integrationObj = { integration: { response: { body: result } } };
+            var responseObj = { };
+            _.each(_.keys(responseData.responseParameters), function (p) {
+              setProperty(responseObj, p, getProperty(integrationObj, responseData.responseParameters[p]));
+            });
+
+            // set the mapped headers
+            if (responseObj.method && responseObj.method.response) {
+              _.each(_.keys(responseObj.method.response.header), function (k) {
+                res.set(k, responseObj.method.response.header[k]);
+              });
+            }
+            res.status(responseData.statusCode).send(result);
+          }
         },
         fail: function (result) {
           var responses = req.swagger.operation['x-amazon-apigateway-integration'].responses;
