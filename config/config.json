@@ -1,0 +1,6 @@
+{
+  "LambdaFunctionName": {
+    "path": "path to local lambda function",
+    "name": "the exported function name"
+  }
+}

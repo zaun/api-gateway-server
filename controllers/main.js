@@ -2,7 +2,9 @@
 
 var Engine = require('velocity').Engine,
     jsStringEscape = require('js-string-escape'),
-    _ = require('lodash');
+    _ = require('lodash'),
+    proxyquire = require('proxyquire'),
+    nconf = require('nconf');
 
 var PARAM_TYPE_LOOKUP = {
   'path': 'path',
@@ -11,6 +13,8 @@ var PARAM_TYPE_LOOKUP = {
 };
 
 var async = require('async');
+
+nconf.file('config', __dirname + '/../config/config.json');
 
 // dereference a dotted string into an object
 // e.g. "a.b.c" => a.b.c
@@ -40,12 +44,38 @@ function setProperty(obj, str, value) {
   }
 }
 
+var awsSdk = {
+  Lambda: function () {
+    this.invoke = function (params, callback) {
+      var functionData = nconf.get(params.FunctionName);
+      if (functionData) {
+        var rest = require(functionData.path);
+        rest[functionData.name](JSON.parse(params.Payload), {
+          succeed: function (data) {
+            callback(null, {
+              Payload: JSON.stringify(data)
+            });
+          }
+        });
+      }
+      else {
+        callback({
+          statusCode: 500,
+          message: 'Fake AWS Lambda could not find a suitable ' + params.FunctionName + '.  Make sure to add it to the config.json'
+        });
+      }
+    };
+  }
+};
+
 function handler(req, res) {
   var lambdaName = req.swagger.operation['x-lambda-function'];
   if (!lambdaName) {
     res.status(500).send('No lambda function defined in swagger definition using x-lambda-function');
   }
-  var lambda = require('../../' + lambdaName);
+  var lambda = proxyquire('../../' + lambdaName, {
+    'aws-sdk': awsSdk
+  });
 
   // look for a security function
   var authLambda;
@@ -56,7 +86,8 @@ function handler(req, res) {
     if (!authLambdaName) {
       res.status(500).send('No authentication lambda function defined in swagger definition using x-lambda-function');
     }
-    authLambda = require('../../' + authLambdaName);
+    authLambda = proxyquire('../../' + authLambdaName, {
+    });
   }
 
   if (authLambda && (!req.swagger.params.Authorization || !req.swagger.params.Authorization.value)) {
