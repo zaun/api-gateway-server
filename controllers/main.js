@@ -3,7 +3,7 @@
 var Engine = require('velocity').Engine,
     jsStringEscape = require('js-string-escape'),
     _ = require('lodash'),
-    proxyquire = require('proxyquire'),
+    proxyquire = require('proxyquire').noPreserveCache(),
     nconf = require('nconf');
 
 var PARAM_TYPE_LOOKUP = {
@@ -68,14 +68,21 @@ var awsSdk = {
   }
 };
 
+// it seems that calling proxyquire will not get the cached version so keeping our own cache as a workaround
+var lambdaFunctionCache = {};
+
 function handler(req, res) {
   var lambdaName = req.swagger.operation['x-lambda-function'];
   if (!lambdaName) {
     res.status(500).send('No lambda function defined in swagger definition using x-lambda-function');
   }
-  var lambda = proxyquire('../../' + lambdaName, {
-    'aws-sdk': awsSdk
-  });
+  if (!lambdaFunctionCache[lambdaName]) {
+    lambdaFunctionCache[lambdaName] = proxyquire('../../' + lambdaName, {
+      'aws-sdk': awsSdk
+    });
+  }
+
+  var lambda = lambdaFunctionCache[lambdaName];
 
   // look for a security function
   var authLambda;
