@@ -233,6 +233,9 @@ function handler(req, res) {
       lambda.handler(event, {
         succeed: function (result) {
           if (isUsingAwsProxy) {
+            for (var key in result.headers) {
+              res.header(key, result.headers[key]);
+            }
             res.status(result.statusCode).send(JSON.parse(result.body));
           }
           else {
