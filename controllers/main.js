@@ -55,6 +55,14 @@ var awsSdk = {
             callback(null, {
               Payload: JSON.stringify(data)
             });
+          },
+          fail: function (data) {
+            callback(null, {
+              FunctionError: 'handled',
+              Payload: JSON.stringify({
+                errorMessage: data
+              })
+            });
           }
         });
       }
