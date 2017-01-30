@@ -2,5 +2,9 @@
   "SagelyRest-LambdaHrefToKeysFunction": {
     "path": "../../sagely-rest/build/package/index.js",
     "name": "hrefToKeys"
+  },
+  "SagelyStorage-LambdaFunction": {
+    "path": "../../sagely-storage/build/package/index.js",
+    "name": "handler"
   }
 }
