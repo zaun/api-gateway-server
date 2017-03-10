@@ -81,45 +81,49 @@ var awsSdk = {
 var lambdaFunctionCache = {};
 
 function handler(req, res) {
-  var lambdaName = req.swagger.operation['x-lambda-function'];
-  if (!lambdaName) {
+  var lambdaConf = req.swagger.operation['x-lambda-function'];
+  if (!lambdaConf) {
     res.status(500).send('No lambda function defined in swagger definition using x-lambda-function');
   }
+  var lambdaParts = lambdaConf.split('.');
+  var lambdaName = lambdaParts[0];
+
   if (!lambdaFunctionCache[lambdaName]) {
     lambdaFunctionCache[lambdaName] = proxyquire('../../' + lambdaName, {
       'aws-sdk': awsSdk
     });
   }
 
-  var lambda = lambdaFunctionCache[lambdaName];
+  var lambdaHandler = lambdaFunctionCache[lambdaName][lambdaParts[1] || 'handler'];
 
   // look for a security function
-  var authLambda;
+  var authLambdaHandler;
   if (req.swagger.security && req.swagger.security.length > 0) {
     var model = Object.keys(req.swagger.security[0])[0];
 
-    var authLambdaName = req.swagger.swaggerObject.securityDefinitions[model]['x-lambda-function'];
-    if (!authLambdaName) {
+    var authLambdaConf = req.swagger.swaggerObject.securityDefinitions[model]['x-lambda-function'];
+    if (!authLambdaConf) {
       res.status(500).send('No authentication lambda function defined in swagger definition using x-lambda-function');
     }
-    authLambda = proxyquire('../../' + authLambdaName, {
-    });
+    var authLambdaParts = authLambdaConf.split('.');
+    var authLambda = proxyquire('../../' + authLambdaParts[0], { });
+    authLambdaHandler = authLambdaHandler[authLambdaParts[1] || 'handler'];
   }
 
-  if (authLambda && (!req.swagger.params.Authorization || !req.swagger.params.Authorization.value)) {
+  if (authLambdaHandler && (!req.swagger.params.Authorization || !req.swagger.params.Authorization.value)) {
     res.status(401).send('Unauthorized');
     return;
   }
 
   async.waterfall([
     function (callback) {
-      if (authLambda) {
+      if (authLambdaHandler) {
         var authEvent = {
           type: 'TOKEN',
           authorizationToken: req.swagger.params.Authorization.value,
           methodArn: 'arn:aws:execute-api:us-west-2:788731124032:ws97zst445/null/GET/'
         };
-        authLambda.handler(authEvent, {
+        authLambdaHandler(authEvent, {
           succeed: function (result) {
             var statements = result.policyDocument.Statement;
             var allowedStatements = _.find(statements, { 'Effect': 'Allow' });
@@ -244,7 +248,7 @@ function handler(req, res) {
         }
       }
 
-      lambda.handler(event, {
+      lambdaHandler(event, {
         succeed: function (result) {
           if (isUsingAwsProxy) {
             for (var key in result.headers) {
