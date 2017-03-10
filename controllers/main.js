@@ -4,7 +4,8 @@ var Engine = require('velocity').Engine,
     jsStringEscape = require('js-string-escape'),
     _ = require('lodash'),
     proxyquire = require('proxyquire').noPreserveCache(),
-    nconf = require('nconf');
+    nconf = require('nconf'),
+    uuid = require('uuid');
 
 var PARAM_TYPE_LOOKUP = {
   'path': 'path',
@@ -168,12 +169,17 @@ function handler(req, res) {
       var event;
       if (isUsingAwsProxy) {
         event = {
-          path: req.url,
+          path: req.path,
           httpMethod: req.method,
-          headers: req.headers,
+          headers: _.extend(req.headers, {
+            'x-forwarded-proto': req.protocol
+          }),
           queryStringParameters: req.query,
           body: JSON.stringify(req.body),
-          pathParameters: swaggerParams.path
+          pathParameters: swaggerParams.path,
+          requestContext: {
+            requestId: uuid()
+          }
         };
       }
       else {

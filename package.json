@@ -17,6 +17,7 @@
     "lodash": "4.13.1",
     "nconf": "0.8.2",
     "swagger-tools": "0.10.1",
+    "uuid": "3.0.1",
     "velocity": "0.7.2",
     "yamljs": "0.2.7",
     "proxyquire": "1.7.10",
