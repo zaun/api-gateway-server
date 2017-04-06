@@ -176,7 +176,8 @@ function handler(req, res) {
           path: req.path,
           httpMethod: req.method,
           headers: _.extend(req.headers, {
-            'x-forwarded-proto': req.protocol
+            'x-forwarded-proto': req.protocol,
+            'x-forwarded-for': req.headers.host
           }),
           queryStringParameters: req.query,
           body: JSON.stringify(req.body),
@@ -248,12 +249,22 @@ function handler(req, res) {
         }
       }
 
+      console.log(lambdaName + ': [start]   ' + req.method + ' ' + req.url);
+      var alreadyCalled = false;
       lambdaHandler(event, {
         succeed: function (result) {
+          if (!alreadyCalled) {
+            alreadyCalled = true;
+          } else {
+            console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
+            console.log(new Error().stack);
+            return;
+          }
           if (isUsingAwsProxy) {
             for (var key in result.headers) {
               res.header(key, result.headers[key]);
             }
+            console.log(lambdaName + ': [succeed] ' + req.method + ' ' + req.url + ' ' + result.statusCode);
             res.status(result.statusCode).send(JSON.parse(result.body));
           }
           else {
@@ -272,10 +283,18 @@ function handler(req, res) {
                 res.set(k, responseObj.method.response.header[k]);
               });
             }
+            console.log(lambdaName + ': [succeed] ' + req.url + ' ' + responseData.statusCode);
             res.status(responseData.statusCode).send(result);
           }
         },
         fail: function (result) {
+          if (!alreadyCalled) {
+            alreadyCalled = true;
+          } else {
+            console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
+            console.log(new Error().stack);
+            return;
+          }
           var responses = req.swagger.operation['x-amazon-apigateway-integration'].responses;
           var found = false;
           _.each(_.keys(responses), function (r) {
@@ -301,6 +320,7 @@ function handler(req, res) {
               });
 
               found = true;
+              console.log(lambdaName + ': [fail]    ' + req.method + ' ' + req.url + ' ' + responses[r].statusCode);
               res.status(responses[r].statusCode).send(response);
             }
           });
