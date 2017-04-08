@@ -316,6 +316,9 @@ function handler(req, res) {
                 },
                 input: {
                   body: result,
+                  path: function (path) {
+                    return jsonpath.query({ errorMessage: result }, path)[0];
+                  },
                   json: function (path) {
                     return jsonpath.query({ errorMessage: result }, path)[0];
                   }
