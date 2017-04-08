@@ -324,8 +324,9 @@ function handler(req, res) {
               res.status(responses[r].statusCode).send(response);
             }
           });
+          // AWS wraps the output of a fail in a JSON like object
           if (!found) {
-            res.send(result);
+            res.send('{errorMessage=' + result + '}');
           }
         }
       });
