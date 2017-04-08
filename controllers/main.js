@@ -1,6 +1,7 @@
 'use strict';
 
 var Engine = require('velocity').Engine,
+    jsonpath = require('jsonpath'),
     jsStringEscape = require('js-string-escape'),
     _ = require('lodash'),
     proxyquire = require('proxyquire').noPreserveCache(),
@@ -315,7 +316,9 @@ function handler(req, res) {
                 },
                 input: {
                   body: result,
-                  json: function () { return JSON.stringify(result); }
+                  json: function (path) {
+                    return jsonpath.query({ errorMessage: result }, path)[0];
+                  }
                 }
               });
 

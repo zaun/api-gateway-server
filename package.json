@@ -21,6 +21,7 @@
     "velocity": "0.7.2",
     "yamljs": "0.2.7",
     "proxyquire": "1.7.10",
-    "nconf": "0.8.4"
+    "nconf": "0.8.4",
+    "jsonpath": "0.2.11"
   }
 }
