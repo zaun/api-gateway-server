@@ -9,6 +9,7 @@ var Engine = require('velocity').Engine,
     uuid = require('uuid');
 
 var PARAM_TYPE_LOOKUP = {
+  'body': 'body',
   'path': 'path',
   'query': 'querystring',
   'header': 'header'
@@ -155,16 +156,16 @@ function handler(req, res) {
 
       // massage the swagger params into something usable by AWS
       // e.g.
-      // { dateRange: { path: {...}, schema: { name: 'dateRange', in: 'path' }, value: 'may-2015' }, ... }
+      // { dateRange: { parameterObject: { definition: { name: 'dateRange', in: 'path' }, value: 'may-2015' } }, ... }
       //   ==>
       // { path: { dateRange: 'may-2015' }, ... }
       var swaggerParams = _.chain(req.swagger.params).values().filter(function (p) {
         return p.value;
       }).groupBy(function (p) {
-        return PARAM_TYPE_LOOKUP[p.schema.in];
+        return PARAM_TYPE_LOOKUP[p.parameterObject.definition.in];
       }).mapValues(function (collection) {
         return _.chain(collection).groupBy(function (p) {
-          return p.schema.name;
+          return p.parameterObject.definition.name;
         }).mapValues(function (p) {
           return p[0].value;
         }).value();

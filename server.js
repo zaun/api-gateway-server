@@ -3,7 +3,7 @@
 var async = require('async'),
     express = require('express'),
     http = require('http'),
-    swaggerTools = require('swagger-tools'),
+    Runner = require('swagger-node-runner'),
     yamljs = require('yamljs'),
     _ = require('lodash');
 
@@ -41,23 +41,43 @@ app.use(function (req, res, next) {
   next();
 });
 
-var options = {
-  controllers: './controllers',
-  useStubs: true
-};
+process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 async.each(_.drop(process.argv, 2), function (arg, callback) {
   var swaggerDoc = yamljs.load(arg);
-  swaggerTools.initializeMiddleware(swaggerDoc, function (middleware) {
-    app.use(middleware.swaggerMetadata());
-    app.use(middleware.swaggerRouter(options));
-    app.use(middleware.swaggerUi({
-      apiDocs: '/api-docs' + swaggerDoc.basePath,
-      swaggerUi: '/docs' + swaggerDoc.basePath
-    }));
+  Runner.create({
+    appRoot: '.',
+    startWithErrors: true,
+    swagger: swaggerDoc,
+    fittingsDirs: [ './fittings' ],
+    defaultPipe: 'swagger_controllers',
+    swaggerControllerPipe: 'swagger_controllers',
+    bagpipes: {
+      _router: {
+        name: 'swagger_router',
+        mockMode: false,
+        mockControllersDirs: [ 'api/mocks' ],
+        controllersDirs: [ './controllers' ]
+      },
+      'swagger_controllers': [
+        'cors',
+        'swagger_params_parser',
+        '_router'
+      ]
+    }
+  }, function (err, runner) {
+    if (err) {
+      callback(err);
+      return;
+    }
+    runner.expressMiddleware().register(app);
     callback();
   });
-}, function () {
-  http.createServer(app).listen(7111, function () {
-    console.log('API Gateway server listening on port 7111');
-  });
+}, function (err) {
+  if (err) {
+    console.error(err);
+  } else {
+    http.createServer(app).listen(7111, function () {
+      console.log('API Gateway server listening on port 7111');
+    });
+  }
 });
