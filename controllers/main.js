@@ -353,3 +353,15 @@ module.exports.get = function (req, res) {
 module.exports.post = function (req, res) {
   handler(req, res);
 };
+
+module.exports.put = function (req, res) {
+  handler(req, res);
+};
+
+module.exports.delete = function (req, res) {
+  handler(req, res);
+};
+
+module.exports.patch = function (req, res) {
+  handler(req, res);
+};
