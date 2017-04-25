@@ -58,6 +58,12 @@ async.each(_.drop(process.argv, 2), function (arg, callback) {
         mockControllersDirs: [ 'api/mocks' ],
         controllersDirs: [ './controllers' ]
       },
+      'any_controllers': [
+        'cors',
+        'any_handler',
+        'swagger_params_parser',
+        '_router'
+      ],
       'swagger_controllers': [
         'cors',
         'swagger_params_parser',
