@@ -51,9 +51,20 @@ var awsSdk = {
   Lambda: function () {
     this.invoke = function (params, callback) {
       var functionData = nconf.get(params.FunctionName);
+      var handler;
       if (functionData) {
-        var rest = require(functionData.path);
-        rest[functionData.name](JSON.parse(params.Payload), {
+        // we found this in the config file
+        handler = require(functionData.path)[functionData.name];
+      } else {
+        // try the newer way of specifying lambdas as just a path
+        try {
+          var fn = params.FunctionName.split('.');
+          var lambda = require('../../' + fn[0]);
+          handler = lambda[fn[1] || 'handler'];
+        } catch (e) { }
+      }
+      if (handler) {
+        handler(JSON.parse(params.Payload), {
           succeed: function (data) {
             callback(null, {
               Payload: JSON.stringify(data)
