@@ -4,7 +4,7 @@ var Engine = require('velocity').Engine,
     jsonpath = require('jsonpath'),
     jsStringEscape = require('js-string-escape'),
     _ = require('lodash'),
-    proxyquire = require('proxyquire').noPreserveCache(),
+    proxyquire = require('proxyquire'),
     nconf = require('nconf'),
     uuid = require('uuid');
 
