@@ -52,6 +52,12 @@ async.each(_.drop(process.argv, 2), function (arg, callback) {
     defaultPipe: 'swagger_controllers',
     swaggerControllerPipe: 'swagger_controllers',
     bagpipes: {
+      '_swagger_params_parser': {
+        name: 'swagger_params_parser',
+        jsonOptions: {
+          limit: 5 * 1024 * 1024
+        }
+      },
       _router: {
         name: 'swagger_router',
         mockMode: false,
@@ -61,12 +67,12 @@ async.each(_.drop(process.argv, 2), function (arg, callback) {
       'any_controllers': [
         'cors',
         'any_handler',
-        'swagger_params_parser',
+        '_swagger_params_parser',
         '_router'
       ],
       'swagger_controllers': [
         'cors',
-        'swagger_params_parser',
+        '_swagger_params_parser',
         '_router'
       ]
     }
