@@ -190,7 +190,7 @@ function handler(req, res) {
           httpMethod: req.method,
           headers: _.extend(req.headers, {
             'x-forwarded-proto': req.protocol,
-            'x-forwarded-for': req.ip
+            'x-forwarded-for': req.ip || '127.0.0.1'
           }),
           queryStringParameters: req.query,
           body: JSON.stringify(req.body),
