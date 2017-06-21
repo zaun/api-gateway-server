@@ -240,6 +240,9 @@ function handler(req, res) {
                 }
               };
             }
+          },
+          context: {
+            requestId: uuid()
           }
         });
         event = JSON.parse(event);
