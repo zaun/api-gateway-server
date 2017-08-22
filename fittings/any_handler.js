@@ -1,6 +1,6 @@
 'use strict';
 
-var Operation = require('swagger-node-runner/node_modules/sway/lib/types/operation');
+var Operation = require('sway/lib/types/operation');
 var _ = require('lodash');
 
 /**
