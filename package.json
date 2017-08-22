@@ -15,13 +15,13 @@
     "express": "4.13.3",
     "js-string-escape": "1.0.1",
     "lodash": "4.13.1",
-    "nconf": "0.8.2",
+    "nconf": "0.8.4",
     "swagger-node-runner": "0.7.2",
     "uuid": "3.0.1",
     "velocity": "0.7.2",
     "yamljs": "0.2.7",
     "proxyquire": "1.7.10",
-    "nconf": "0.8.4",
-    "jsonpath": "0.2.11"
+    "jsonpath": "0.2.11",
+    "sway": "1.0.0"
   }
 }
