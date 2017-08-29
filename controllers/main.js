@@ -281,7 +281,7 @@ function handler(req, res) {
               res.header(key, result.headers[key]);
             }
             console.log(lambdaName + ': [succeed] ' + req.method + ' ' + req.url + ' ' + result.statusCode);
-            res.status(result.statusCode).send(JSON.parse(result.body));
+            res.status(result.statusCode).send(result.body);
           }
           else {
             var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
