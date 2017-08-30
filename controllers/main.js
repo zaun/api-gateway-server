@@ -298,7 +298,11 @@ function handler(req, res) {
               });
             }
             console.log(lambdaName + ': [succeed] ' + req.url + ' ' + responseData.statusCode);
-            res.status(responseData.statusCode).send(result);
+            if (responseData.contentHandling === 'CONVERT_TO_BINARY') {
+              res.status(responseData.statusCode).send(new Buffer(result, 'base64'));
+            } else {
+              res.status(responseData.statusCode).send(result);
+            }
           }
         },
         fail: function (result) {
