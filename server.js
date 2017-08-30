@@ -55,6 +55,7 @@ async.each(_.drop(process.argv, 2), function (arg, callback) {
       '_swagger_params_parser': {
         name: 'swagger_params_parser',
         jsonOptions: {
+          type: ['json', 'application/*+json'],
           limit: 5 * 1024 * 1024
         }
       },

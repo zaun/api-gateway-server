@@ -193,7 +193,7 @@ function handler(req, res) {
             'x-forwarded-for': req.ip || '127.0.0.1'
           }),
           queryStringParameters: req.query,
-          body: JSON.stringify(req.body),
+          body: typeof(req.body) === 'object' ? JSON.stringify(req.body) : req.body,
           pathParameters: swaggerParams.path,
           requestContext: {
             requestId: uuid()
