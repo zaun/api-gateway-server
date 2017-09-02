@@ -170,7 +170,9 @@ function handler(req, res) {
       // { dateRange: { parameterObject: { definition: { name: 'dateRange', in: 'path' }, value: 'may-2015' } }, ... }
       //   ==>
       // { path: { dateRange: 'may-2015' }, ... }
-      var swaggerParams = _.chain(req.swagger.params).values().groupBy(function (p) {
+      var swaggerParams = _.chain(req.swagger.params).values().filter(function (p) {
+        return p.value;
+      }).groupBy(function (p) {
         return PARAM_TYPE_LOOKUP[p.parameterObject.definition.in];
       }).mapValues(function (collection) {
         return _.chain(collection).groupBy(function (p) {
