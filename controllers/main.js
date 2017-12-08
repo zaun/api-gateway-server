@@ -267,98 +267,110 @@ function handler(req, res) {
 
       console.log(lambdaName + ': [start]   ' + req.method + ' ' + req.url);
       var alreadyCalled = false;
-      lambdaHandler(event, {
-        succeed: function (result) {
-          if (!alreadyCalled) {
-            alreadyCalled = true;
-          } else {
-            console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
-            console.log(new Error().stack);
-            return;
-          }
-          if (isUsingAwsProxy) {
-            for (var key in result.headers) {
-              res.header(key, result.headers[key]);
-            }
-            console.log(lambdaName + ': [succeed] ' + req.method + ' ' + req.url + ' ' + result.statusCode);
-            var body;
-            try {
-              body = JSON.parse(result.body);
-            } catch (e) {
-              body = result.body;
-            }
-            res.status(result.statusCode).send(body);
-          }
-          else {
-            var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
 
-            // construct the AWS-like mapping object
-            var integrationObj = { integration: { response: { body: result } } };
-            var responseObj = { };
-            _.each(_.keys(responseData.responseParameters), function (p) {
-              setProperty(responseObj, p, getProperty(integrationObj, responseData.responseParameters[p]));
+      var succeed = function (result) {
+        if (!alreadyCalled) {
+          alreadyCalled = true;
+        } else {
+          console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
+          console.log(new Error().stack);
+          return;
+        }
+        if (isUsingAwsProxy) {
+          for (var key in result.headers) {
+            res.header(key, result.headers[key]);
+          }
+          console.log(lambdaName + ': [succeed] ' + req.method + ' ' + req.url + ' ' + result.statusCode);
+          var body;
+          try {
+            body = JSON.parse(result.body);
+          } catch (e) {
+            body = result.body;
+          }
+          res.status(result.statusCode).send(body);
+        }
+        else {
+          var responseData = req.swagger.operation['x-amazon-apigateway-integration'].responses.default;
+
+          // construct the AWS-like mapping object
+          var integrationObj = { integration: { response: { body: result } } };
+          var responseObj = { };
+          _.each(_.keys(responseData.responseParameters), function (p) {
+            setProperty(responseObj, p, getProperty(integrationObj, responseData.responseParameters[p]));
+          });
+
+          // set the mapped headers
+          if (responseObj.method && responseObj.method.response) {
+            _.each(_.keys(responseObj.method.response.header), function (k) {
+              res.set(k, responseObj.method.response.header[k]);
+            });
+          }
+          console.log(lambdaName + ': [succeed] ' + req.url + ' ' + responseData.statusCode);
+          if (responseData.contentHandling === 'CONVERT_TO_BINARY') {
+            res.status(responseData.statusCode).send(new Buffer(result, 'base64'));
+          } else {
+            res.status(responseData.statusCode).send(result);
+          }
+        }
+      };
+
+      var fail = function (result) {
+        if (!alreadyCalled) {
+          alreadyCalled = true;
+        } else {
+          console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
+          console.log(new Error().stack);
+          return;
+        }
+        var responses = req.swagger.operation['x-amazon-apigateway-integration'].responses;
+        var found = false;
+        _.each(_.keys(responses), function (r) {
+          if ((new RegExp(r)).test(result)) {
+            var type = _.find(req.headers.accept.split(','), function (t) {
+              return _.find(_.keys(responses[r].responseTemplates), t);
+            }) || _.keys(responses[r].responseTemplates)[0];
+            var engine = new Engine({
+              template: responses[r].responseTemplates[type]
             });
 
-            // set the mapped headers
-            if (responseObj.method && responseObj.method.response) {
-              _.each(_.keys(responseObj.method.response.header), function (k) {
-                res.set(k, responseObj.method.response.header[k]);
-              });
-            }
-            console.log(lambdaName + ': [succeed] ' + req.url + ' ' + responseData.statusCode);
-            if (responseData.contentHandling === 'CONVERT_TO_BINARY') {
-              res.status(responseData.statusCode).send(new Buffer(result, 'base64'));
-            } else {
-              res.status(responseData.statusCode).send(result);
-            }
-          }
-        },
-        fail: function (result) {
-          if (!alreadyCalled) {
-            alreadyCalled = true;
-          } else {
-            console.log(lambdaName + ': [double]  ' + req.method + ' ' + req.url + ' ignored');
-            console.log(new Error().stack);
-            return;
-          }
-          var responses = req.swagger.operation['x-amazon-apigateway-integration'].responses;
-          var found = false;
-          _.each(_.keys(responses), function (r) {
-            if ((new RegExp(r)).test(result)) {
-              var type = _.find(req.headers.accept.split(','), function (t) {
-                return _.find(_.keys(responses[r].responseTemplates), t);
-              }) || _.keys(responses[r].responseTemplates)[0];
-              var engine = new Engine({
-                template: responses[r].responseTemplates[type]
-              });
-
-              var response = engine.render({
-                // make an object that mimics what AWS puts into the velocity engine
-                util: {
-                  escapeJavaScript: function (str) {
-                    return jsStringEscape(str);
-                  }
-                },
-                input: {
-                  body: result,
-                  path: function (path) {
-                    return jsonpath.query({ errorMessage: result }, path)[0];
-                  },
-                  json: function (path) {
-                    return jsonpath.query({ errorMessage: result }, path)[0];
-                  }
+            var response = engine.render({
+              // make an object that mimics what AWS puts into the velocity engine
+              util: {
+                escapeJavaScript: function (str) {
+                  return jsStringEscape(str);
                 }
-              });
+              },
+              input: {
+                body: result,
+                path: function (path) {
+                  return jsonpath.query({ errorMessage: result }, path)[0];
+                },
+                json: function (path) {
+                  return jsonpath.query({ errorMessage: result }, path)[0];
+                }
+              }
+            });
 
-              found = true;
-              console.log(lambdaName + ': [fail]    ' + req.method + ' ' + req.url + ' ' + responses[r].statusCode);
-              res.status(responses[r].statusCode).send(response);
-            }
-          });
-          // AWS wraps the output of a fail in a JSON like object
-          if (!found) {
-            res.send('{errorMessage=' + result + '}');
+            found = true;
+            console.log(lambdaName + ': [fail]    ' + req.method + ' ' + req.url + ' ' + responses[r].statusCode);
+            res.status(responses[r].statusCode).send(response);
           }
+        });
+        // AWS wraps the output of a fail in a JSON like object
+        if (!found) {
+          res.send('{errorMessage=' + result + '}');
+        }
+      };
+
+      lambdaHandler(event, {
+        succeed: succeed,
+        fail: fail
+      }, function (err, result) {
+        if (err) {
+          fail(err);
+        }
+        else {
+          succeed(result);
         }
       });
       callback(null);
