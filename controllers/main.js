@@ -1,12 +1,13 @@
 'use strict';
 
-var Engine = require('velocity').Engine,
-    jsonpath = require('jsonpath'),
-    jsStringEscape = require('js-string-escape'),
-    _ = require('lodash'),
-    proxyquire = require('proxyquire'),
-    nconf = require('nconf'),
-    uuid = require('uuid');
+const async = require('async');
+const jsonpath = require('jsonpath');
+const jsStringEscape = require('js-string-escape');
+const _ = require('lodash');
+const nconf = require('nconf');
+const proxyquire = require('proxyquire');
+const { Engine } = require('velocity');
+const uuid = require('uuid');
 
 var PARAM_TYPE_LOOKUP = {
   'body': 'body',
@@ -14,8 +15,6 @@ var PARAM_TYPE_LOOKUP = {
   'query': 'querystring',
   'header': 'header'
 };
-
-var async = require('async');
 
 nconf.file('config', __dirname + '/../config/config.json');
 
@@ -50,33 +49,49 @@ function setProperty(obj, str, value) {
 var awsSdk = {
   Lambda: function () {
     this.invoke = function (params, callback) {
-      var functionData = nconf.get(params.FunctionName);
-      var handler;
+      const functionData = nconf.get(params.FunctionName);
+      let handler = null;
       if (functionData) {
         // we found this in the config file
         handler = require(functionData.path)[functionData.name];
       } else {
         // try the newer way of specifying lambdas as just a path
         try {
-          var fn = params.FunctionName.split('.');
-          var lambda = require('../../' + fn[0]);
+          const fn = params.FunctionName.split('.');
+          const lambda = require('../../' + fn[0]);
           handler = lambda[fn[1] || 'handler'];
         } catch (e) { }
       }
       if (handler) {
+        const succeed = (data) => {
+          callback(null, {
+            Payload: JSON.stringify(data)
+          });
+        };
+
+        const fail = (err) => {
+          callback(null, {
+            FunctionError: 'handled',
+            Payload: JSON.stringify({
+              errorMessage: data
+            })
+          });
+        };
+
         handler(JSON.parse(params.Payload), {
-          succeed: function (data) {
-            callback(null, {
-              Payload: JSON.stringify(data)
-            });
+          succeed(data) {
+            console.error('WARN: Using deprecated context.succeed to complete lambda: ' + params.FunctionName);
+            succeed(data);
           },
-          fail: function (data) {
-            callback(null, {
-              FunctionError: 'handled',
-              Payload: JSON.stringify({
-                errorMessage: data
-              })
-            });
+          fail(err) {
+            console.error('WARN: Using deprecated context.fail to complete lambda: ' + params.FunctionName);
+            fail(err);
+          }
+        }, (err, data) => {
+          if (err) {
+            fail(err);
+          } else {
+            succeed(data);
           }
         });
       }
@@ -110,7 +125,7 @@ function handler(req, res) {
   var lambdaHandler = lambdaFunctionCache[lambdaName][lambdaParts[1] || 'handler'];
 
   // look for a security function
-  var authLambdaHandler;
+  let authLambdaHandler = null;
   if (req.swagger.security && req.swagger.security.length > 0) {
     var model = Object.keys(req.swagger.security[0])[0];
 
@@ -131,26 +146,42 @@ function handler(req, res) {
   async.waterfall([
     function (callback) {
       if (authLambdaHandler) {
-        var authEvent = {
+        const authEvent = {
           type: 'TOKEN',
           authorizationToken: req.swagger.params.Authorization.value,
           methodArn: 'arn:aws:execute-api:us-west-2:788731124032:ws97zst445/null/GET/'
         };
-        authLambdaHandler(authEvent, {
-          succeed: function (result) {
-            var statements = result.policyDocument.Statement;
-            var allowedStatements = _.find(statements, { 'Effect': 'Allow' });
 
-            // proceed if we find any allowed statements since our auth function is allowing all
-            if (allowedStatements) {
-              callback(null, result);
-            }
-            else {
-              callback({'code': 403, 'data': 'User is not authorized to access this resource'});
-            }
+        const authSucceed = (result) => {
+          const statements = result.policyDocument.Statement;
+          const allowedStatements = _.find(statements, { 'Effect': 'Allow' });
+
+          // proceed if we find any allowed statements since our auth function is allowing all
+          if (allowedStatements) {
+            callback(null, result);
+          } else {
+            callback({ code: 403, data: 'User is not authorized to access this resource'});
+          }
+        };
+
+        const authFail = (err) => {
+          callback({ code: 401, data: err });
+        };
+
+        authLambdaHandler(authEvent, {
+          succeed(result) {
+            console.error('WARN: Using deprecated context.succeed to complete authLambda');
+            succeed(result);
           },
-          fail: function (result) {
-            callback({'code': 401, 'data': result});
+          fail(err) {
+            console.error('WARN: Using deprecated context.fail to complete authLambda');
+            fail(err);
+          }
+        }, (err, result) => {
+          if (err) {
+            authFail(err);
+          } else {
+            authSucceed(result);
           }
         });
       }
@@ -268,7 +299,7 @@ function handler(req, res) {
       console.log(lambdaName + ': [start]   ' + req.method + ' ' + req.url);
       var alreadyCalled = false;
 
-      var succeed = function (result) {
+      const succeed = (result) => {
         if (!alreadyCalled) {
           alreadyCalled = true;
         } else {
@@ -314,7 +345,7 @@ function handler(req, res) {
         }
       };
 
-      var fail = function (result) {
+      const fail = (result) => {
         if (!alreadyCalled) {
           alreadyCalled = true;
         } else {
@@ -363,13 +394,18 @@ function handler(req, res) {
       };
 
       lambdaHandler(event, {
-        succeed: succeed,
-        fail: fail
-      }, function (err, result) {
-        if (err) {
+        succeed(result) {
+          console.error('WARN: Using deprecated context.succeed to complete lambda ' + lambdaName);
+          succeed(result);
+        },
+        fail(err) {
+          console.error('WARN: Using deprecated context.fail to complete lambda ' + lambdaName);
           fail(err);
         }
-        else {
+      }, (err, result) => {
+        if (err) {
+          fail(err);
+        } else {
           succeed(result);
         }
       });

@@ -1,18 +1,18 @@
 'use strict';
 
-var async = require('async'),
-    express = require('express'),
-    http = require('http'),
-    Runner = require('swagger-node-runner'),
-    yamljs = require('yamljs'),
-    _ = require('lodash');
+const async = require('async');
+const express = require('express');
+const http = require('http');
+const _ = require('lodash');
+const Runner = require('swagger-node-runner');
+const yamljs = require('yamljs');
 
 if (process.argv.length <= 2) {
   console.error('Usage: node server.js [SWAGGER_FILE]');
   process.exit(1);
 }
 
-var app = express();
+const app = express();
 
 app.use(function (req, res, next) {
   if (req.method === 'OPTIONS') {
