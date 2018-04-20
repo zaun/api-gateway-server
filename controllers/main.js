@@ -73,7 +73,7 @@ var awsSdk = {
           callback(null, {
             FunctionError: 'handled',
             Payload: JSON.stringify({
-              errorMessage: data
+              errorMessage: err
             })
           });
         };
