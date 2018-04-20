@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "git@github.com:TeamPraxis/api-gateway-server.git"
+    "url": "git@github.com:sagely/api-gateway-server.git"
   },
   "scripts": {
     "start": "node server.js"
