@@ -1,0 +1,15 @@
+{
+  "verbose": true,
+  "ignore": [
+    "../**/node_modules/**"
+  ],
+  "watch": [
+    "../sagely-calendar-print/build/package",
+    "../sagely-reporting/build/package",
+    "../sagely-microservices/build/package",
+    "../sagely-rest/build/package",
+    "../sagely-newsletter/build/package",
+    "../sagely-client-log/build/package"
+  ],
+  "ext": "js,json,pug"
+}

@@ -4,20 +4,20 @@
   "version": "0.0.1",
   "repository": {
     "type": "git",
-    "url": "git@github.com:TeamPraxis/api-gateway-server.git"
+    "url": "git@github.com:sagely/api-gateway-server.git"
   },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "async": "2.0.1",
-    "body-parser": "1.14.1",
-    "express": "4.13.3",
+    "async": "2.6.0",
+    "body-parser": "1.18.2",
+    "express": "4.16.3",
     "js-string-escape": "1.0.1",
-    "lodash": "4.13.1",
-    "nconf": "0.8.4",
-    "swagger-node-runner": "0.7.2",
-    "uuid": "3.0.1",
+    "lodash": "4.17.4",
+    "nconf": "0.8.5",
+    "swagger-node-runner": "0.7.3",
+    "uuid": "3.2.1",
     "velocity": "0.7.2",
     "yamljs": "0.2.7",
     "proxyquire": "1.7.10",
